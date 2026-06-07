@@ -100,13 +100,16 @@
               <v-col cols="12">
                 <v-textarea
                   v-model="targets"
-                  label="公网扫描 IP 对象 (支持 CIDR 段、IP 范围、单 IP，多目标换行或逗号分隔)"
-                  placeholder="例如: 104.16.0.0/16 或者是 151.101.0.0/24"
+                  label="公网扫描 IP 对象 (💡 重点推荐扫描当前主机同 C 段网段以实现超低延迟邻近伪装)"
+                  placeholder="例如: 12.34.56.0/24。无需扫描外部各种 CDN，建议优先扫描当前主机同网段"
                   rows="3"
                   variant="outlined"
                   :disabled="selectedPreset !== 'custom'"
-                  class="mb-4"
+                  class="mb-2"
                 ></v-textarea>
+                <div class="text-caption text-primary mb-4 font-weight-medium">
+                  💡 邻近网段扫描最为关键！我们强烈建议优先针对您当前服务器所在的同 C 段或同 B 段进行扫描。由于物理邻近，同网段不仅握手延迟最低，还可以使您的 Reality 伪装在网络拓扑上显得最为自然真实。
+                </div>
               </v-col>
             </v-row>
             <v-row>
@@ -172,17 +175,40 @@
                 >
                   开始并发深度扫描
                 </v-btn>
-                <v-btn
-                  v-else
-                  color="error"
-                  variant="flat"
-                  size="large"
-                  prepend-icon="mdi-stop"
-                  @click="stopScan"
-                  class="rounded-lg px-6"
-                >
-                  停止扫描任务
-                </v-btn>
+                <template v-else>
+                  <v-btn
+                    v-if="!scanStatus.is_paused"
+                    color="warning"
+                    variant="flat"
+                    size="large"
+                    prepend-icon="mdi-pause"
+                    @click="pauseScan"
+                    class="rounded-lg px-6 mr-2"
+                  >
+                    暂停扫描
+                  </v-btn>
+                  <v-btn
+                    v-else
+                    color="success"
+                    variant="flat"
+                    size="large"
+                    prepend-icon="mdi-play"
+                    @click="resumeScan"
+                    class="rounded-lg px-6 mr-2"
+                  >
+                    继续扫描
+                  </v-btn>
+                  <v-btn
+                    color="error"
+                    variant="flat"
+                    size="large"
+                    prepend-icon="mdi-stop"
+                    @click="stopScan"
+                    class="rounded-lg px-6"
+                  >
+                    停止扫描任务
+                  </v-btn>
+                </template>
               </v-col>
             </v-row>
           </v-window-item>
@@ -195,8 +221,8 @@
       <v-card-text>
         <v-row align="center">
           <v-col cols="12" md="4" class="text-h6 d-flex align-center">
-            <v-icon icon="mdi-pulse" class="mr-2" :color="scanStatus.is_running ? 'success' : 'grey'"></v-icon>
-            状态: {{ scanStatus.is_running ? '正在并发扫描 IP 段中...' : '扫描已结束' }}
+            <v-icon icon="mdi-pulse" class="mr-2" :color="scanStatus.is_running ? (scanStatus.is_paused ? 'warning' : 'success') : 'grey'"></v-icon>
+            状态: {{ scanStatus.is_running ? (scanStatus.is_paused ? '扫描已暂停' : '正在并发扫描 IP 段中...') : '扫描已结束' }}
           </v-col>
           <v-col cols="12" md="4" class="text-subtitle-1 text-center">
             已探测进度: {{ scanStatus.scanned }} / {{ scanStatus.total }} IP 
@@ -364,25 +390,26 @@ const testDomains = ref([
 
 const serverIp = ref('')
 const serverIpDisplay = ref('获取中...')
-const targets = ref('104.16.0.0/16')
+const targets = ref('')
 const threads = ref(100)
 const timeout = ref(3)
 const duration = ref(300)
 const heuristicSni = ref('yahoo.com') // 默认使用 yahoo.com 作为启发式 SNI
 
-const selectedPreset = ref('cloudflare')
+const selectedPreset = ref('host_c') // 默认围绕当前主机 IP 段展开
 const presets = ref([
+  { title: '当前主机同 C 段 (/24) (🚀 强烈推荐)', value: 'host_c' },
+  { title: '当前主机同 B 段抽样 (/16)', value: 'host_b' },
   { title: 'Cloudflare 节点段 (104.16.0.0/16)', value: 'cloudflare' },
   { title: 'Cloudflare 备用段 (104.18.0.0/16)', value: 'cloudflare_alt' },
   { title: 'Fastly 节点段 (151.101.0.0/16)', value: 'fastly' },
   { title: 'Amazon CloudFront 段 (13.224.0.0/16)', value: 'cloudfront' },
-  { title: '当前主机同 C 段 (/24)', value: 'host_c' },
-  { title: '当前主机同 B 段抽样 (/16)', value: 'host_b' },
   { title: '自定义输入段/域名', value: 'custom' },
 ])
 
 const scanStatus = ref({
   is_running: false,
+  is_paused: false,
   total: 0,
   scanned: 0,
   found_count: 0,
@@ -413,9 +440,13 @@ const fetchServerIp = async () => {
     const cSegment = getCSegment(res.obj)
     const bSegment = getBSegment(res.obj)
     
+    if (selectedPreset.value === 'host_c') {
+      targets.value = cSegment
+    }
+    
     presets.value.forEach(p => {
       if (p.value === 'host_c') {
-        p.title = `当前主机同 C 段 (${cSegment})`
+        p.title = `当前主机同 C 段 (${cSegment}) (🚀 强烈推荐)`
       } else if (p.value === 'host_b') {
         p.title = `当前主机同 B 段抽样 (${bSegment})`
       }
@@ -498,6 +529,24 @@ const startScan = async () => {
     duration: duration.value,
     heuristic_sni: heuristicSni.value // 支持启发式 SNI Fallback
   })
+  loading.value = false
+  if (res.success) {
+    await fetchScanStatus()
+  }
+}
+
+const pauseScan = async () => {
+  loading.value = true
+  const res = await HttpUtils.post('api/pauseScan', {})
+  loading.value = false
+  if (res.success) {
+    await fetchScanStatus()
+  }
+}
+
+const resumeScan = async () => {
+  loading.value = true
+  const res = await HttpUtils.post('api/resumeScan', {})
   loading.value = false
   if (res.success) {
     await fetchScanStatus()

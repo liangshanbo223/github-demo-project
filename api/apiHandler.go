@@ -100,6 +100,10 @@ func (a *APIHandler) postHandler(c *gin.Context) {
 		a.ApiService.PostStartScan(c)
 	case "stopScan":
 		a.ApiService.PostStopScan(c)
+	case "pauseScan":
+		a.ApiService.PostPauseScan(c)
+	case "resumeScan":
+		a.ApiService.PostResumeScan(c)
 	case "saveScannerReality":
 		a.ApiService.PostSaveScannerReality(c)
 	default:

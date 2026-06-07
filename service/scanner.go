@@ -25,6 +25,7 @@ type ScanResult struct {
 
 type ScanStatus struct {
 	IsRunning  bool         `json:"is_running"`
+	IsPaused   bool         `json:"is_paused"`
 	Total      int          `json:"total"`
 	Scanned    int          `json:"scanned"`
 	FoundCount int          `json:"found_count"`
@@ -33,10 +34,12 @@ type ScanStatus struct {
 
 type ScannerService struct {
 	isRunning    bool
+	isPaused     bool
 	totalIPs     int
 	scannedIPs   int
 	foundDomains []ScanResult
 	stopChan     chan struct{}
+	pauseCond    *sync.Cond
 	mu           sync.Mutex
 }
 
@@ -50,6 +53,7 @@ func GetScannerService() *ScannerService {
 		globalScanner = &ScannerService{
 			foundDomains: make([]ScanResult, 0),
 		}
+		globalScanner.pauseCond = sync.NewCond(&globalScanner.mu)
 	})
 	return globalScanner
 }
@@ -63,6 +67,7 @@ func (s *ScannerService) GetStatus() ScanStatus {
 
 	return ScanStatus{
 		IsRunning:  s.isRunning,
+		IsPaused:   s.isPaused,
 		Total:      s.totalIPs,
 		Scanned:    s.scannedIPs,
 		FoundCount: len(s.foundDomains),
@@ -75,7 +80,9 @@ func (s *ScannerService) StopScan() {
 	defer s.mu.Unlock()
 	if s.isRunning {
 		s.isRunning = false
+		s.isPaused = false
 		close(s.stopChan)
+		s.pauseCond.Broadcast() // 唤醒所有可能被挂起在暂停状态的 Worker
 	}
 }
 
@@ -87,6 +94,7 @@ func (s *ScannerService) StartScan(targets string, threads int, timeoutSec int, 
 	}
 
 	s.isRunning = true
+	s.isPaused = false
 	s.stopChan = make(chan struct{})
 	s.foundDomains = make([]ScanResult, 0)
 	s.scannedIPs = 0
@@ -95,6 +103,23 @@ func (s *ScannerService) StartScan(targets string, threads int, timeoutSec int, 
 
 	go s.runScanTask(targets, threads, timeoutSec, durationSec, heuristicSni)
 	return nil
+}
+
+func (s *ScannerService) PauseScan() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.isRunning && !s.isPaused {
+		s.isPaused = true
+	}
+}
+
+func (s *ScannerService) ResumeScan() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.isRunning && s.isPaused {
+		s.isPaused = false
+		s.pauseCond.Broadcast() // 唤醒所有 Worker 继续扫描
+	}
 }
 
 func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int, durationSec int, heuristicSni string) {
@@ -148,6 +173,18 @@ func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int
 					if !ok {
 						return
 					}
+
+					// 执行前检查暂停状态
+					s.mu.Lock()
+					for s.isPaused && s.isRunning {
+						s.pauseCond.Wait()
+					}
+					if !s.isRunning {
+						s.mu.Unlock()
+						return
+					}
+					s.mu.Unlock()
+
 					s.scanIPAddress(ip, timeout, heuristicSni)
 					s.mu.Lock()
 					s.scannedIPs++

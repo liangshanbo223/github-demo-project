@@ -789,6 +789,18 @@ func (a *ApiService) PostStopScan(c *gin.Context) {
 	jsonMsg(c, "success", nil)
 }
 
+func (a *ApiService) PostPauseScan(c *gin.Context) {
+	scanner := service.GetScannerService()
+	scanner.PauseScan()
+	jsonMsg(c, "success", nil)
+}
+
+func (a *ApiService) PostResumeScan(c *gin.Context) {
+	scanner := service.GetScannerService()
+	scanner.ResumeScan()
+	jsonMsg(c, "success", nil)
+}
+
 func (a *ApiService) GetScanStatus(c *gin.Context) {
 	scanner := service.GetScannerService()
 	status := scanner.GetStatus()

@@ -178,4 +178,24 @@ func TestWebServer_Integration(t *testing.T) {
 	if !startScanResp["success"].(bool) {
 		t.Errorf("Expected startScan API success true, got false. Body: %s", wStartScan.Body.String())
 	}
+
+	// 8. Test Pause Scan API (POST /app/api/pauseScan)
+	reqPauseScan := httptest.NewRequest("POST", "/app/api/pauseScan", nil)
+	reqPauseScan.AddCookie(sessionCookie)
+	wPauseScan := httptest.NewRecorder()
+	engine.ServeHTTP(wPauseScan, reqPauseScan)
+
+	if wPauseScan.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for pauseScan, got %d. Body: %s", wPauseScan.Code, wPauseScan.Body.String())
+	}
+
+	// 9. Test Resume Scan API (POST /app/api/resumeScan)
+	reqResumeScan := httptest.NewRequest("POST", "/app/api/resumeScan", nil)
+	reqResumeScan.AddCookie(sessionCookie)
+	wResumeScan := httptest.NewRecorder()
+	engine.ServeHTTP(wResumeScan, reqResumeScan)
+
+	if wResumeScan.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for resumeScan, got %d. Body: %s", wResumeScan.Code, wResumeScan.Body.String())
+	}
 }
