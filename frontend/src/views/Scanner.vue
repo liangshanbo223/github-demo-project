@@ -21,6 +21,18 @@
         </v-tab>
       </v-tabs>
 
+      <!-- 全局 Reality 扫描/校验进度指示条 -->
+      <div style="height: 6px; position: relative; overflow: hidden;">
+        <v-progress-linear
+          v-if="scanStatus.is_running || isValidating"
+          :color="isValidating ? 'success' : (scanStatus.is_paused ? 'warning' : 'primary')"
+          height="6"
+          :model-value="isValidating ? undefined : (scanStatus.scanned / (scanStatus.total || 1)) * 100"
+          :indeterminate="isValidating"
+          striped
+        ></v-progress-linear>
+      </div>
+
       <v-divider></v-divider>
 
       <v-card-text class="pt-4">
@@ -87,12 +99,12 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="serverIpDisplay"
-                  label="当前服务器公网 IP"
-                  readonly
+                  label="当前服务器公网 IP (检测失败可手动输入修正)"
                   variant="outlined"
                   hide-details
                   prepend-inner-icon="mdi-ip-network"
                   class="mb-4"
+                  @update:modelValue="onServerIpInput"
                 ></v-text-field>
               </v-col>
             </v-row>
@@ -217,7 +229,7 @@
     </v-card>
 
     <!-- 运行状态与进度卡片 (仅当 IP 段扫描运行时显示) -->
-    <v-card v-if="tab === 'scan' && (scanStatus.is_running || scanStatus.total > 0)" class="rounded-xl mb-4" elevation="4">
+    <v-card v-if="scanStatus.is_running || scanStatus.total > 0" class="rounded-xl mb-4" elevation="4">
       <v-card-text>
         <v-row align="center">
           <v-col cols="12" md="4" class="text-h6 d-flex align-center">
@@ -453,6 +465,31 @@ const fetchServerIp = async () => {
     })
   } else {
     serverIpDisplay.value = '检测失败 (不影响自定义扫描)'
+  }
+}
+
+const onServerIpInput = (val: string) => {
+  const ip = val.trim()
+  const parts = ip.split('.')
+  if (parts.length === 4) {
+    serverIp.value = ip
+    
+    const cSegment = getCSegment(ip)
+    const bSegment = getBSegment(ip)
+    
+    if (selectedPreset.value === 'host_c') {
+      targets.value = cSegment
+    } else if (selectedPreset.value === 'host_b') {
+      targets.value = bSegment
+    }
+    
+    presets.value.forEach(p => {
+      if (p.value === 'host_c') {
+        p.title = `当前主机同 C 段 (${cSegment}) (🚀 强烈推荐)`
+      } else if (p.value === 'host_b') {
+        p.title = `当前主机同 B 段抽样 (${bSegment})`
+      }
+    })
   }
 }
 

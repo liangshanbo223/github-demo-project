@@ -114,8 +114,8 @@ func TestWebServer_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse scanStatus response: %v", err)
 	}
-	if scanStatusResp["status"] != "success" {
-		t.Errorf("Expected status 'success' for scanStatus, got '%s'", scanStatusResp["status"])
+	if !scanStatusResp["success"].(bool) {
+		t.Errorf("Expected success to be true for scanStatus, got false")
 	}
 
 	// 5. Test Server Public IP endpoint

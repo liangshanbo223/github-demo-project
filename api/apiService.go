@@ -804,13 +804,13 @@ func (a *ApiService) PostResumeScan(c *gin.Context) {
 func (a *ApiService) GetScanStatus(c *gin.Context) {
 	scanner := service.GetScannerService()
 	status := scanner.GetStatus()
-	c.JSON(200, gin.H{"status": "success", "obj": status})
+	jsonObj(c, status, nil)
 }
 
 func (a *ApiService) GetServerIp(c *gin.Context) {
 	scanner := service.GetScannerService()
 	ip := scanner.GetServerPublicIP()
-	c.JSON(200, gin.H{"status": "success", "obj": ip})
+	jsonObj(c, ip, nil)
 }
 
 func (a *ApiService) PostSaveScannerReality(c *gin.Context) {

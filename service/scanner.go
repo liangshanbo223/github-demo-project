@@ -475,21 +475,30 @@ func extractHTMLTitle(body string) string {
 }
 
 func (s *ScannerService) GetServerPublicIP() string {
-	client := http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("https://api.ipify.org")
-	if err == nil {
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
-		if err == nil {
-			return strings.TrimSpace(string(body))
-		}
+	urls := []string{
+		"https://api.ipify.org",
+		"http://icanhazip.com",
+		"https://api.ip.sb/ip",
+		"http://ip.sb",
+		"http://ident.me",
+		"http://ipinfo.io/ip",
 	}
-	resp, err = client.Get("http://icanhazip.com")
-	if err == nil {
-		defer resp.Body.Close()
+
+	client := http.Client{Timeout: 3 * time.Second}
+	for _, u := range urls {
+		resp, err := client.Get(u)
+		if err != nil {
+			continue
+		}
 		body, err := io.ReadAll(resp.Body)
-		if err == nil {
-			return strings.TrimSpace(string(body))
+		resp.Body.Close()
+		if err != nil {
+			continue
+		}
+		ipStr := strings.TrimSpace(string(body))
+		// 校验是否为合法 IPv4/IPv6 地址
+		if ip := net.ParseIP(ipStr); ip != nil {
+			return ipStr
 		}
 	}
 
