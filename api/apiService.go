@@ -465,12 +465,12 @@ func (a *ApiService) GetAcmeLogStream(c *gin.Context) {
 
 func (a *ApiService) PostAcmeIssue(c *gin.Context) {
 	var params struct {
-		Email       string   `json:"email"`
-		Domains     []string `json:"domains"`
-		DnsProvider string   `json:"dnsProvider"`
-		DnsParams   []string `json:"dnsParams"`
+		Email       string   `json:"email" form:"email"`
+		Domains     []string `json:"domains" form:"domains"`
+		DnsProvider string   `json:"dnsProvider" form:"dnsProvider"`
+		DnsParams   []string `json:"dnsParams" form:"dnsParams"`
 	}
-	if err := c.ShouldBindJSON(&params); err != nil {
+	if err := c.ShouldBind(&params); err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
@@ -519,19 +519,19 @@ func (a *ApiService) NodeConfig(c *gin.Context, nodeId uint, token string) {
 
 func (a *ApiService) NodeReport(c *gin.Context) {
 	var req struct {
-		NodeId  uint   `json:"node_id"`
-		Token   string `json:"token"`
+		NodeId  uint   `json:"node_id" form:"node_id"`
+		Token   string `json:"token" form:"token"`
 		Status  struct {
-			Cpu float64 `json:"cpu"`
-			Mem float64 `json:"mem"`
-		} `json:"status"`
+			Cpu float64 `json:"cpu" form:"cpu"`
+			Mem float64 `json:"mem" form:"mem"`
+		} `json:"status" form:"status"`
 		Traffic []struct {
-			Tag  string `json:"tag"`
-			Up   int64  `json:"up"`
-			Down int64  `json:"down"`
-		} `json:"traffic"`
+			Tag  string `json:"tag" form:"tag"`
+			Up   int64  `json:"up" form:"up"`
+			Down int64  `json:"down" form:"down"`
+		} `json:"traffic" form:"traffic"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(400, gin.H{"status": "failed", "error": err.Error()})
 		return
 	}
@@ -613,10 +613,10 @@ func (a *ApiService) RecoveryPassword(c *gin.Context) {
 
 func (a *ApiService) PostDiagnose(c *gin.Context) {
 	var req struct {
-		Type   string `json:"type"`
-		Target string `json:"target"`
+		Type   string `json:"type" form:"type"`
+		Target string `json:"target" form:"target"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
@@ -725,12 +725,12 @@ func (a *ApiService) GetSysLogStream(c *gin.Context) {
 
 func (a *ApiService) PostStartScan(c *gin.Context) {
 	var params struct {
-		Targets     string `json:"targets"`
-		Threads     int    `json:"threads"`
-		TimeoutSec  int    `json:"timeout"`
-		DurationSec int    `json:"duration"`
+		Targets     string `json:"targets" form:"targets"`
+		Threads     int    `json:"threads" form:"threads"`
+		TimeoutSec  int    `json:"timeout" form:"timeout"`
+		DurationSec int    `json:"duration" form:"duration"`
 	}
-	if err := c.ShouldBindJSON(&params); err != nil {
+	if err := c.ShouldBind(&params); err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
@@ -775,10 +775,10 @@ func (a *ApiService) GetServerIp(c *gin.Context) {
 
 func (a *ApiService) PostSaveScannerReality(c *gin.Context) {
 	var params struct {
-		IP     string `json:"ip"`
-		Domain string `json:"domain"`
+		IP     string `json:"ip" form:"ip"`
+		Domain string `json:"domain" form:"domain"`
 	}
-	if err := c.ShouldBindJSON(&params); err != nil {
+	if err := c.ShouldBind(&params); err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
