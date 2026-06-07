@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,8 +57,7 @@ func GetScannerService() *ScannerService {
 func (s *ScannerService) GetStatus() ScanStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
-	// Copy results to prevent concurrent map read/write
+
 	resultsCopy := make([]ScanResult, len(s.foundDomains))
 	copy(resultsCopy, s.foundDomains)
 
@@ -79,7 +79,7 @@ func (s *ScannerService) StopScan() {
 	}
 }
 
-func (s *ScannerService) StartScan(targets string, threads int, timeoutSec int, durationSec int) error {
+func (s *ScannerService) StartScan(targets string, threads int, timeoutSec int, durationSec int, heuristicSni string) error {
 	s.mu.Lock()
 	if s.isRunning {
 		s.mu.Unlock()
@@ -93,11 +93,11 @@ func (s *ScannerService) StartScan(targets string, threads int, timeoutSec int, 
 	s.totalIPs = 0
 	s.mu.Unlock()
 
-	go s.runScanTask(targets, threads, timeoutSec, durationSec)
+	go s.runScanTask(targets, threads, timeoutSec, durationSec, heuristicSni)
 	return nil
 }
 
-func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int, durationSec int) {
+func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int, durationSec int, heuristicSni string) {
 	defer func() {
 		s.mu.Lock()
 		s.isRunning = false
@@ -109,7 +109,7 @@ func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int
 		return
 	}
 
-	// 随机抽样限制在 2000 个以保障 5 分钟内扫完
+	// 随机抽样限制在 2000 个以保障扫描效率
 	if len(ips) > 2000 {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		r.Shuffle(len(ips), func(i, j int) {
@@ -133,7 +133,7 @@ func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int
 	limitTimer := time.NewTimer(time.Duration(durationSec) * time.Second)
 	defer limitTimer.Stop()
 
-	// 启动 Worker
+	// 启动 Worker 进行并发扫描
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
 		go func() {
@@ -148,7 +148,7 @@ func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int
 					if !ok {
 						return
 					}
-					s.scanIPAddress(ip, timeout)
+					s.scanIPAddress(ip, timeout, heuristicSni)
 					s.mu.Lock()
 					s.scannedIPs++
 					s.mu.Unlock()
@@ -160,31 +160,57 @@ func (s *ScannerService) runScanTask(targets string, threads int, timeoutSec int
 	wg.Wait()
 }
 
-func (s *ScannerService) scanIPAddress(ip net.IP, timeout time.Duration) {
+func (s *ScannerService) scanIPAddress(ip net.IP, timeout time.Duration, heuristicSni string) {
 	hostPort := net.JoinHostPort(ip.String(), "443")
-	
 	dialer := &net.Dialer{Timeout: timeout}
+
+	// 1. 尝试第一次常规握手（不带 SNI 探测）
+	var state tls.ConnectionState
+	var hasCerts bool
+
 	conn, err := dialer.Dial("tcp", hostPort)
-	if err != nil {
-		return
+	if err == nil {
+		tlsConn := tls.Client(conn, &tls.Config{
+			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS10,
+			MaxVersion:         tls.VersionTLS13,
+		})
+		_ = tlsConn.SetDeadline(time.Now().Add(timeout))
+		err = tlsConn.Handshake()
+		if err == nil {
+			state = tlsConn.ConnectionState()
+			if len(state.PeerCertificates) > 0 {
+				hasCerts = true
+			}
+		}
+		tlsConn.Close()
+		conn.Close()
 	}
-	defer conn.Close()
 
-	// 第一次握手：不带 SNI 获取证书域名列表
-	tlsConn := tls.Client(conn, &tls.Config{
-		InsecureSkipVerify: true,
-		MinVersion:         tls.VersionTLS10,
-		MaxVersion:         tls.VersionTLS13,
-	})
-	
-	_ = tlsConn.SetDeadline(time.Now().Add(timeout))
-	err = tlsConn.Handshake()
-	if err != nil {
-		return
+	// 2. 如果常规握手失败，且配置了启发式 SNI，则启用 SNI 回退探测
+	if (!hasCerts || err != nil) && heuristicSni != "" {
+		conn, err = dialer.Dial("tcp", hostPort)
+		if err == nil {
+			tlsConn := tls.Client(conn, &tls.Config{
+				ServerName:         heuristicSni,
+				InsecureSkipVerify: true,
+				MinVersion:         tls.VersionTLS10,
+				MaxVersion:         tls.VersionTLS13,
+			})
+			_ = tlsConn.SetDeadline(time.Now().Add(timeout))
+			err = tlsConn.Handshake()
+			if err == nil {
+				state = tlsConn.ConnectionState()
+				if len(state.PeerCertificates) > 0 {
+					hasCerts = true
+				}
+			}
+			tlsConn.Close()
+			conn.Close()
+		}
 	}
 
-	state := tlsConn.ConnectionState()
-	if len(state.PeerCertificates) == 0 {
+	if !hasCerts {
 		return
 	}
 
@@ -197,9 +223,8 @@ func (s *ScannerService) scanIPAddress(ip net.IP, timeout time.Duration) {
 		candidates[name] = true
 	}
 
-	// 针对获取的每个候选域名作 Reality 兼容性判定与正常网站强检测
+	// 3. 对解析出的域名分别进行 Reality TLS 1.3/X25519 连通性测试
 	for domain := range candidates {
-		// 转换通配符 *.example.com => www.example.com
 		if strings.Contains(domain, "*") {
 			domain = strings.Replace(domain, "*.", "www.", 1)
 		}
@@ -219,7 +244,6 @@ func (s *ScannerService) scanIPAddress(ip net.IP, timeout time.Duration) {
 
 func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time.Duration) (ScanResult, error) {
 	hostPort := net.JoinHostPort(ip.String(), "443")
-	
 	dialer := &net.Dialer{Timeout: timeout}
 	conn, err := dialer.Dial("tcp", hostPort)
 	if err != nil {
@@ -227,7 +251,7 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 	}
 	defer conn.Close()
 
-	// 强制要求 TLS 1.3 且支持 X25519
+	// 强制要求 TLS 1.3 且带上 X25519 的 Reality 最优配置进行协商
 	tlsCfg := &tls.Config{
 		ServerName:         domain,
 		InsecureSkipVerify: true,
@@ -257,7 +281,6 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 		alpn = "http/1.1"
 	}
 
-	// 1. 验证证书是否合法（排除无效自签与内网自建 CA）
 	if len(state.PeerCertificates) == 0 {
 		return ScanResult{}, fmt.Errorf("no peer certs")
 	}
@@ -274,9 +297,8 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 	}
 	issuer := strings.ToLower(cert.Issuer.CommonName + issuerOrg)
 
-	// 黑名单自建 Issuer，避免不安全的内网服务
 	blacklistedTerms := []string{
-		"self-signed", "localhost", "kubernetes", "ingress", "traefik", 
+		"self-signed", "localhost", "kubernetes", "ingress", "traefik",
 		"minica", "mkcert", "default", "root ca", "node", "router",
 	}
 	for _, term := range blacklistedTerms {
@@ -285,7 +307,7 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 		}
 	}
 
-	// 2. 发起 HTTP 头部和页面抓取以确定为正常网站 (排除空响应或路由器/网关后台等)
+	// 模拟浏览器发送极简 HTTP GET 请求以验证网页状态与后台关键字
 	reqStr := fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nConnection: close\r\n\r\n", domain)
 	_, err = tlsConn.Write([]byte(reqStr))
 	if err != nil {
@@ -299,8 +321,6 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 	}
 
 	respStr := string(buf[:n])
-	
-	// 解析状态码
 	statusCode := 200
 	lines := strings.Split(respStr, "\r\n")
 	if len(lines) > 0 && strings.HasPrefix(lines[0], "HTTP/") {
@@ -312,27 +332,22 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 		}
 	}
 
-	// 丢弃重定向节点
 	if statusCode == 301 || statusCode == 302 || statusCode == 307 || statusCode == 308 {
 		return ScanResult{}, fmt.Errorf("redirect occurred")
 	}
 
-	// 解析 Body 长度与内容
 	bodyStartIndex := strings.Index(respStr, "\r\n\r\n")
 	bodyContent := ""
 	if bodyStartIndex != -1 && len(respStr) > bodyStartIndex+4 {
 		bodyContent = respStr[bodyStartIndex+4:]
 	}
 
-	// 判定网页的字节长度 (排除空网页)
 	if len(bodyContent) < 100 {
-		// 某些大厂网站根路径直接返回 403 或者是 400，但头信息可能长于 100，这也是正常
 		if len(respStr) < 200 {
 			return ScanResult{}, fmt.Errorf("response size too small")
 		}
 	}
 
-	// 对 HTML 页面标题进行识别，过滤 NAS 路由器、设备网关
 	bodyLower := strings.ToLower(bodyContent)
 	title := extractHTMLTitle(bodyLower)
 	gatewayKeywords := []string{
@@ -356,6 +371,60 @@ func (s *ScannerService) testTargetDomain(ip net.IP, domain string, timeout time
 	}, nil
 }
 
+// 模式 A：大厂知名域名一键测速校验模式的后台逻辑实现
+func (s *ScannerService) ValidateDomains(domains []string, timeoutSec int) []ScanResult {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	results := make([]ScanResult, 0)
+	timeout := time.Duration(timeoutSec) * time.Second
+
+	for _, d := range domains {
+		d = strings.TrimSpace(d)
+		if d == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(domain string) {
+			defer wg.Done()
+			
+			// 1. 进行 DNS 解析，获取真实 IP
+			ips, err := net.LookupIP(domain)
+			if err != nil || len(ips) == 0 {
+				return
+			}
+			
+			// 选择解析出的第一个 IPv4 进行测试
+			var targetIP net.IP
+			for _, ip := range ips {
+				if ip.To4() != nil {
+					targetIP = ip
+					break
+				}
+			}
+			if targetIP == nil {
+				targetIP = ips[0]
+			}
+
+			// 2. 调用核心测速与证书/网页校验方法
+			res, err := s.testTargetDomain(targetIP, domain, timeout)
+			if err == nil {
+				mu.Lock()
+				results = append(results, res)
+				mu.Unlock()
+			}
+		}(d)
+	}
+
+	wg.Wait()
+
+	// 按照物理延迟从低到高进行完美排序
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Delay < results[j].Delay
+	})
+
+	return results
+}
+
 func extractHTMLTitle(body string) string {
 	start := strings.Index(body, "<title>")
 	if start == -1 {
@@ -369,7 +438,7 @@ func extractHTMLTitle(body string) string {
 }
 
 func (s *ScannerService) GetServerPublicIP() string {
-	client := http.Client{Timeout: 5 * time.Second}
+	client := http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get("https://api.ipify.org")
 	if err == nil {
 		defer resp.Body.Close()
@@ -378,7 +447,6 @@ func (s *ScannerService) GetServerPublicIP() string {
 			return strings.TrimSpace(string(body))
 		}
 	}
-	// 备用
 	resp, err = client.Get("http://icanhazip.com")
 	if err == nil {
 		defer resp.Body.Close()
@@ -387,8 +455,7 @@ func (s *ScannerService) GetServerPublicIP() string {
 			return strings.TrimSpace(string(body))
 		}
 	}
-	
-	// 若无公网连接，获取网卡 IP
+
 	addrs, err := net.InterfaceAddrs()
 	if err == nil {
 		for _, addr := range addrs {
@@ -402,7 +469,7 @@ func (s *ScannerService) GetServerPublicIP() string {
 	return "127.0.0.1"
 }
 
-// 辅助解析 IP 生成器
+// 优化版的 IP 解析与生成，避免内存暴涨
 func parseTargetsToIPs(targets string) []net.IP {
 	var ips []net.IP
 	targets = strings.ReplaceAll(targets, "\r", "")
@@ -418,12 +485,13 @@ func parseTargetsToIPs(targets string) []net.IP {
 			if part == "" {
 				continue
 			}
-			
-			// 1. 处理 CIDR
+
+			// 1. 处理 CIDR 段，最多只允许生成前 2048 个 IP 限制内存
 			if _, ipNet, err := net.ParseCIDR(part); err == nil {
-				// 获取首个 IP，逐个累加
-				for ip := cloneIP(ipNet.IP); ipNet.Contains(ip); incrementIP(ip) {
+				count := 0
+				for ip := cloneIP(ipNet.IP); ipNet.Contains(ip) && count < 2048; incrementIP(ip) {
 					ips = append(ips, cloneIP(ip))
+					count++
 				}
 				continue
 			}
@@ -435,8 +503,10 @@ func parseTargetsToIPs(targets string) []net.IP {
 					startIP := net.ParseIP(strings.TrimSpace(subParts[0]))
 					endIP := net.ParseIP(strings.TrimSpace(subParts[1]))
 					if startIP != nil && endIP != nil {
-						for ip := cloneIP(startIP); bytesLessThanOrEqual(ip, endIP); incrementIP(ip) {
+						count := 0
+						for ip := cloneIP(startIP); bytesLessThanOrEqual(ip, endIP) && count < 2048; incrementIP(ip) {
 							ips = append(ips, cloneIP(ip))
+							count++
 						}
 					}
 				}

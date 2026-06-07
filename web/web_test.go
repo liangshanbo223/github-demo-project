@@ -127,4 +127,55 @@ func TestWebServer_Integration(t *testing.T) {
 	if wServerIp.Code != http.StatusOK {
 		t.Errorf("Expected status 200 for serverIp, got %d", wServerIp.Code)
 	}
+
+	// 6. Test Domain Validation API (POST /app/api/scanner/validate)
+	valForm := url.Values{}
+	valForm.Add("domains", "yahoo.com,apple.com")
+	valForm.Add("timeout", "2")
+
+	reqValidate := httptest.NewRequest("POST", "/app/api/scanner/validate", strings.NewReader(valForm.Encode()))
+	reqValidate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqValidate.AddCookie(sessionCookie)
+	wValidate := httptest.NewRecorder()
+	engine.ServeHTTP(wValidate, reqValidate)
+
+	if wValidate.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for scanner/validate, got %d. Body: %s", wValidate.Code, wValidate.Body.String())
+	}
+
+	var valResp map[string]interface{}
+	err = json.Unmarshal(wValidate.Body.Bytes(), &valResp)
+	if err != nil {
+		t.Fatalf("Failed to parse validate response: %v", err)
+	}
+	if !valResp["success"].(bool) {
+		t.Errorf("Expected validate API success true, got false. Body: %s", wValidate.Body.String())
+	}
+
+	// 7. Test Start Scan with Heuristic SNI API (POST /app/api/startScan)
+	scanForm := url.Values{}
+	scanForm.Add("targets", "1.1.1.1")
+	scanForm.Add("threads", "10")
+	scanForm.Add("timeout", "2")
+	scanForm.Add("duration", "10")
+	scanForm.Add("heuristic_sni", "yahoo.com")
+
+	reqStartScan := httptest.NewRequest("POST", "/app/api/startScan", strings.NewReader(scanForm.Encode()))
+	reqStartScan.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqStartScan.AddCookie(sessionCookie)
+	wStartScan := httptest.NewRecorder()
+	engine.ServeHTTP(wStartScan, reqStartScan)
+
+	if wStartScan.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for startScan, got %d. Body: %s", wStartScan.Code, wStartScan.Body.String())
+	}
+
+	var startScanResp map[string]interface{}
+	err = json.Unmarshal(wStartScan.Body.Bytes(), &startScanResp)
+	if err != nil {
+		t.Fatalf("Failed to parse startScan response: %v", err)
+	}
+	if !startScanResp["success"].(bool) {
+		t.Errorf("Expected startScan API success true, got false. Body: %s", wStartScan.Body.String())
+	}
 }

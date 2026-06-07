@@ -725,10 +725,11 @@ func (a *ApiService) GetSysLogStream(c *gin.Context) {
 
 func (a *ApiService) PostStartScan(c *gin.Context) {
 	var params struct {
-		Targets     string `json:"targets" form:"targets"`
-		Threads     int    `json:"threads" form:"threads"`
-		TimeoutSec  int    `json:"timeout" form:"timeout"`
-		DurationSec int    `json:"duration" form:"duration"`
+		Targets      string `json:"targets" form:"targets"`
+		Threads      int    `json:"threads" form:"threads"`
+		TimeoutSec   int    `json:"timeout" form:"timeout"`
+		DurationSec  int    `json:"duration" form:"duration"`
+		HeuristicSni string `json:"heuristic_sni" form:"heuristic_sni"`
 	}
 	if err := c.ShouldBind(&params); err != nil {
 		jsonMsg(c, "", err)
@@ -746,13 +747,40 @@ func (a *ApiService) PostStartScan(c *gin.Context) {
 	}
 
 	scanner := service.GetScannerService()
-	err := scanner.StartScan(params.Targets, params.Threads, params.TimeoutSec, params.DurationSec)
+	err := scanner.StartScan(params.Targets, params.Threads, params.TimeoutSec, params.DurationSec, params.HeuristicSni)
 	if err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
 
 	jsonMsg(c, "success", nil)
+}
+
+func (a *ApiService) PostValidateDomains(c *gin.Context) {
+	var params struct {
+		Domains    string `json:"domains" form:"domains"`
+		TimeoutSec int    `json:"timeout" form:"timeout"`
+	}
+	if err := c.ShouldBind(&params); err != nil {
+		jsonMsg(c, "", err)
+		return
+	}
+
+	if params.TimeoutSec <= 0 {
+		params.TimeoutSec = 3
+	}
+
+	var domains []string
+	for _, d := range strings.Split(params.Domains, ",") {
+		d = strings.TrimSpace(d)
+		if d != "" {
+			domains = append(domains, d)
+		}
+	}
+
+	scanner := service.GetScannerService()
+	results := scanner.ValidateDomains(domains, params.TimeoutSec)
+	jsonObj(c, results, nil)
 }
 
 func (a *ApiService) PostStopScan(c *gin.Context) {

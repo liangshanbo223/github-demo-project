@@ -31,8 +31,13 @@ func (a *APIHandler) initRouter(g *gin.RouterGroup) {
 			checkLogin(c)
 		}
 	})
+	g.POST("/scanner/validate", a.validateDomainsHandler)
 	g.POST("/:postAction", a.postHandler)
 	g.GET("/:getAction", a.getHandler)
+}
+
+func (a *APIHandler) validateDomainsHandler(c *gin.Context) {
+	a.ApiService.PostValidateDomains(c)
 }
 
 func (a *APIHandler) nodeConfigHandler(c *gin.Context) {
