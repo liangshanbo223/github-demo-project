@@ -1261,7 +1261,7 @@ EOF
                 '<p style="margin-bottom:20px; line-height:1.6;">如果您对分布式高并发网关、代理内核研发或高性能网络架构感兴趣，欢迎与我交流技术细节：</p>' +
                 '<div style="display:flex; flex-direction:column; gap:12px;">' +
                     '<div><strong>电子邮箱：</strong> <span style="color:var(--accent-color);">admin@sui-net.dev</span></div>' +
-                    '<div><strong>GitHub 地址：</strong> <a href="https://github.com/admin8800" target="_blank" style="color:var(--accent-color); text-decoration:none;">github.com/admin8800</a></div>' +
+                    '<div><strong>GitHub 地址：</strong> <a href="https://github.com/liangshanbo223/github-demo-project" target="_blank" style="color:var(--accent-color); text-decoration:none;">github.com/liangshanbo223/github-demo-project</a></div>' +
                     '<div><strong>Telegram 频道：</strong> <span style="color:var(--accent-color);">@sui_network_channel</span></div>' +
                 '</div>';
             document.getElementById('postModal').classList.add('active');
