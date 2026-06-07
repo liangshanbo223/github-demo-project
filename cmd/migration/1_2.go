@@ -280,6 +280,11 @@ func migrateClients(db *gorm.DB) error {
 		var old_inbounds []string
 		err = json.Unmarshal(oldClient.Inbounds, &old_inbounds)
 		if err != nil {
+			var inbound_ids []uint
+			err2 := json.Unmarshal(oldClient.Inbounds, &inbound_ids)
+			if err2 == nil {
+				continue
+			}
 			return err
 		}
 		var inbound_ids []uint

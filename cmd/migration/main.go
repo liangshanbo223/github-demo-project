@@ -61,7 +61,7 @@ func MigrateDb() {
 	}
 
 	// Before 1.3
-	if dbVersion[0:3] == "1.2" {
+	if len(dbVersion) >= 3 && dbVersion[0:3] == "1.2" {
 		err = to1_3(tx)
 		if err != nil {
 			log.Fatal("Migration to 1.3 failed: ", err)

@@ -15,6 +15,9 @@ func migrate_dns(db *gorm.DB) error {
 	var configStr string
 	err := db.Model(model.Setting{}).Select("value").Where("key = ?", "config").First(&configStr).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
 		return err
 	}
 	if configStr == "" {
