@@ -2,14 +2,16 @@
 dist/
 release/
 backup/
-bin/
 db/
 sui
 web/html
 main
 tmp
 .sync*
-*.tar.gz
+
+# 允许发布文件夹和打包文件
+!bin/
+!bin/*.tar.gz
 
 # local env files
 .env.local

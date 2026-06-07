@@ -1342,28 +1342,11 @@ prepare_services() {
 install_s-ui() {
     cd /tmp/
 
-    if [ $# == 0 ]; then
-        last_version=$(curl -Ls "https://api.github.com/repos/admin8800/s-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        if [[ ! -n "$last_version" ]]; then
-            echo -e "${red}获取 s-ui 版本失败，可能是 Github API 限制导致，请稍后重试${plain}"
-            exit 1
-        fi
-        echo -e "已获取 s-ui 最新版本：${last_version}，开始安装..."
-        wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz https://github.com/admin8800/s-ui/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}下载 s-ui 失败，请确认服务器可以访问 Github ${plain}"
-            exit 1
-        fi
-    else
-        last_version=$1
-        [[ "${last_version}" != v* ]] && last_version="v${last_version}"
-        url="https://github.com/admin8800/s-ui/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz"
-        echo -e "开始安装 s-ui ${last_version}"
-        wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz ${url}
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}下载 s-ui ${last_version} 失败，请检查该版本是否存在${plain}"
-            exit 1
-        fi
+    echo -e "开始下载 new_s-ui 最新自定义编译版本..."
+    wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz https://raw.githubusercontent.com/liangshanbo223/github-demo-project/main/bin/s-ui-linux-$(arch).tar.gz
+    if [[ $? -ne 0 ]]; then
+        echo -e "${red}下载 s-ui 失败，请确认您的服务器可以访问 raw.githubusercontent.com${plain}"
+        exit 1
     fi
 
     local keep_config=1
