@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/logger"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/logger"
 )
 
 type PanelService struct {

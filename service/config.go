@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/core"
-	"github.com/admin8800/s-ui/database"
-	"github.com/admin8800/s-ui/database/model"
-	"github.com/admin8800/s-ui/logger"
-	"github.com/admin8800/s-ui/util/common"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/core"
+	"github.com/liangshanbo223/github-demo-project/database"
+	"github.com/liangshanbo223/github-demo-project/database/model"
+	"github.com/liangshanbo223/github-demo-project/logger"
+	"github.com/liangshanbo223/github-demo-project/util/common"
 )
 
 var (

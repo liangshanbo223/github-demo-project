@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/database"
-	"github.com/admin8800/s-ui/logger"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/database"
+	"github.com/liangshanbo223/github-demo-project/logger"
 	"github.com/op/go-logging"
 )
 

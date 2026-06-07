@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/admin8800/s-ui/core"
+	"github.com/liangshanbo223/github-demo-project/core"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 )

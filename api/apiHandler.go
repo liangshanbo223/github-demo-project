@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/admin8800/s-ui/util/common"
+	"github.com/liangshanbo223/github-demo-project/util/common"
 
 	"github.com/gin-gonic/gin"
 )

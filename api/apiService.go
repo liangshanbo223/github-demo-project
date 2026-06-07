@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/admin8800/s-ui/database"
-	"github.com/admin8800/s-ui/database/model"
-	"github.com/admin8800/s-ui/logger"
-	"github.com/admin8800/s-ui/service"
-	"github.com/admin8800/s-ui/util"
-	"github.com/admin8800/s-ui/util/common"
+	"github.com/liangshanbo223/github-demo-project/database"
+	"github.com/liangshanbo223/github-demo-project/database/model"
+	"github.com/liangshanbo223/github-demo-project/logger"
+	"github.com/liangshanbo223/github-demo-project/service"
+	"github.com/liangshanbo223/github-demo-project/util"
+	"github.com/liangshanbo223/github-demo-project/util/common"
 	"github.com/gofrs/uuid/v5"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 

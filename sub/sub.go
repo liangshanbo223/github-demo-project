@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/logger"
-	"github.com/admin8800/s-ui/middleware"
-	"github.com/admin8800/s-ui/network"
-	"github.com/admin8800/s-ui/service"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/logger"
+	"github.com/liangshanbo223/github-demo-project/middleware"
+	"github.com/liangshanbo223/github-demo-project/network"
+	"github.com/liangshanbo223/github-demo-project/service"
 
 	"github.com/gin-gonic/gin"
 )

@@ -3,14 +3,14 @@ package app
 import (
 	"log"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/core"
-	"github.com/admin8800/s-ui/cronjob"
-	"github.com/admin8800/s-ui/database"
-	"github.com/admin8800/s-ui/logger"
-	"github.com/admin8800/s-ui/service"
-	"github.com/admin8800/s-ui/sub"
-	"github.com/admin8800/s-ui/web"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/core"
+	"github.com/liangshanbo223/github-demo-project/cronjob"
+	"github.com/liangshanbo223/github-demo-project/database"
+	"github.com/liangshanbo223/github-demo-project/logger"
+	"github.com/liangshanbo223/github-demo-project/service"
+	"github.com/liangshanbo223/github-demo-project/sub"
+	"github.com/liangshanbo223/github-demo-project/web"
 
 	"github.com/op/go-logging"
 )

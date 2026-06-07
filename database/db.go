@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/database/model"
+	"github.com/liangshanbo223/github-demo-project/config"
+	"github.com/liangshanbo223/github-demo-project/database/model"
 	"github.com/gofrs/uuid/v5"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 

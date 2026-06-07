@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/admin8800/s-ui/database"
-	"github.com/admin8800/s-ui/database/model"
-	"github.com/admin8800/s-ui/service"
-	"github.com/admin8800/s-ui/util"
+	"github.com/liangshanbo223/github-demo-project/database"
+	"github.com/liangshanbo223/github-demo-project/database/model"
+	"github.com/liangshanbo223/github-demo-project/service"
+	"github.com/liangshanbo223/github-demo-project/util"
 )
 
 type SubService struct {

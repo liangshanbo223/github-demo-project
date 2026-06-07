@@ -1,4 +1,4 @@
-module github.com/admin8800/s-ui
+module github.com/liangshanbo223/github-demo-project
 
 go 1.25.7
 

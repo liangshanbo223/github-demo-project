@@ -143,7 +143,7 @@
           <v-col cols="12" md="6">
             <v-card class="rounded-xl" elevation="2" title="系统更新">
               <v-card-text>
-                <v-text-field v-model="updateUrl" label="系统更新包下载 URL (.tar.gz 或二进制)" placeholder="https://github.com/admin8800/s-ui/releases/..."></v-text-field>
+                <v-text-field v-model="updateUrl" label="系统更新包下载 URL (.tar.gz 或二进制)" placeholder="https://github.com/liangshanbo223/github-demo-project/releases/..."></v-text-field>
               </v-card-text>
               <v-card-actions>
                 <v-btn color="primary" variant="flat" :loading="updating" @click="triggerUpdate">
@@ -637,7 +637,7 @@ const computedInstallCommand = computed(() => {
   const port = webPort.value
   const host = masterHost.value
   const apiUrl = `${proto}//${host}:${port}/api`
-  return `curl -fsSL https://raw.githubusercontent.com/admin8800/s-ui/main/install.sh | bash && s-ui node --api ${apiUrl} --node ${activeNode.value.id} --token ${activeNode.value.token}`
+  return `curl -fsSL https://raw.githubusercontent.com/liangshanbo223/github-demo-project/main/install.sh | bash && s-ui node --api ${apiUrl} --node ${activeNode.value.id} --token ${activeNode.value.token}`
 })
 
 const copyCommand = () => {

@@ -1,7 +1,7 @@
 package cronjob
 
 import (
-	"github.com/admin8800/s-ui/service"
+	"github.com/liangshanbo223/github-demo-project/service"
 )
 
 type CheckCoreJob struct {

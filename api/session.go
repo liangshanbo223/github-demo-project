@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/gob"
 
-	"github.com/admin8800/s-ui/database/model"
+	"github.com/liangshanbo223/github-demo-project/database/model"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
