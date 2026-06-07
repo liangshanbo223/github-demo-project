@@ -14,7 +14,7 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

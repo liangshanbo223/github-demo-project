@@ -7,7 +7,7 @@ import (
 
 	"github.com/admin8800/s-ui/config"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
